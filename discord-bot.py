@@ -32,7 +32,7 @@ async def on_ready():
 async def addfeed(ctx, url):
     try:
         #print("blah")
-        print(1)
+        #print(1)
         feed = url
         #print(list)
         guild = ctx.message.guild
@@ -47,7 +47,7 @@ async def addfeed(ctx, url):
         else:
             role = ctx.message.role_mentions[0]
 
-        print(2)
+        #print(2)
         await add_list(feed, guild, channel, role, True, True, [])
         #print(config.subscribedFeeds)
         #print(1)
