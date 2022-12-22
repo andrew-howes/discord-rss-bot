@@ -30,6 +30,13 @@ async def on_ready():
 
 @bot.command()
 async def addfeed(ctx, url):
+    await add_feed(ctx, url, 'fast')
+
+@bot.command()
+async def addslow(ctx, url):
+    await add_feed(ctx, url, 'slow')
+
+async def add_feed(ctx, url, speed='fast'):
     try:
         #print("blah")
         #print(1)
@@ -48,10 +55,11 @@ async def addfeed(ctx, url):
             role = ctx.message.role_mentions[0]
 
         #print(2)
-        await add_list(feed, guild, channel, role, True, True, [])
+        await add_list(feed, guild, channel, role, True, True, [],speed)
         #print(config.subscribedFeeds)
         #print(1)
         await storeSubscription()
+        config.loopcount = 0
         #print(2)
         if subscriptionLoop.is_running():
             subscriptionLoop.restart()
@@ -64,8 +72,8 @@ async def addfeed(ctx, url):
         await ctx.send("Uncaught Error"+ str(e))
 
 
-async def add_list(feed, guild, channel, role, active, firstRun, entryCache):
-    listdef = {"feed": feed, "guild": guild, "channel": channel, "role": role, "firstRun": firstRun, "active": active, "entryCache": entryCache}
+async def add_list(feed, guild, channel, role, active, firstRun, entryCache, speed):
+    listdef = {"feed": feed, "guild": guild, "channel": channel, "role": role, "firstRun": firstRun, "active": active, "entryCache": entryCache, "speed":speed}
     
     if config.subscribedFeeds is []:
         config.subscribedFeeds.append(listdef)
@@ -90,12 +98,14 @@ async def stop(ctx, temp=None):
     config.active = False
     await storeSubscription()
     subscriptionLoop.stop()
+    config.loopcount = 0
     await ctx.send("Loop Stopped")
 
 @bot.command()
 async def restart(ctx, temp=None):
     config.active = True
     await storeSubscription()
+    config.loopcount = 0
     if subscriptionLoop.is_running():
         subscriptionLoop.restart()
     else:
@@ -109,7 +119,7 @@ async def viewfeeds(ctx, temp=None):
     filtered = [x for x in config.subscribedFeeds if x['guild'] == guild]
     message = "Current Feeds for this server: \n"
     for list in config.subscribedFeeds:
-        message += "URL: {0} Guild: {1} Channel: {2} role: {3}\n".format(list['feed'], list['guild'].name, list['channel'].name, list['role'].name)
+        message += "URL: {0} Guild: {1} Channel: {2} role: {3} Speed: {4}\n".format(list['feed'], list['guild'].name, list['channel'].name, list['role'].name, list['speed'])
     await ctx.send(message)
 
 
@@ -120,14 +130,6 @@ async def removefeed(ctx, arg):
     
     await ctx.send("Successfully unsubscribed from feed")
 
-
-
-@bot.command()
-async def status(ctx):
-    await ctx.send("Guild: {0}\nChannel: {1}\nrole: {2}\nfirstRun: {3}\nisActive: {4}".format(str(config.guild.id),
-    str(config.channel.id),str(config.role.id),config.firstRun, config.active))
-
-
 async def strip_tags(html):
     soup = BeautifulSoup(html, "html.parser")
 
@@ -137,13 +139,16 @@ async def strip_tags(html):
 @tasks.loop(seconds = 360)
 async def subscriptionLoop():   
     for list in config.subscribedFeeds:
-        messages2 = await getFeedItems(list, 0)
-        if messages2 is not None:
-            for m in messages2:
-                discordMessage = "{0}\n{1}".format(list['role'].mention, m)
-                await list['channel'].send(discordMessage)
+        if config.loopcount is 0 or list['speed'] is 'fast':
+            messages2 = await getFeedItems(list, 0)
+            if messages2 is not None:
+                for m in messages2:
+                    discordMessage = "{0}\n{1}".format(list['role'].mention, m)
+                    await list['channel'].send(discordMessage)
+    config.loopcount = (config.loopcount + 1) % 10
     await storeSubscription()
-    
+
+
 
 async def getFeedItems(list, offset = 0):
     try:
@@ -242,14 +247,14 @@ async def storeSubscription():
 async def serializeLists():
     listjson = []
     for x in config.subscribedFeeds:
-        listjson.append({"feed": x['feed'], "guild": x['guild'].id, "channel": x['channel'].id, "role": x['role'].id, "firstRun": x['firstRun'], "active": x['active'], "entryCache": x['entryCache'] })
+        listjson.append({"feed": x['feed'], "guild": x['guild'].id, "channel": x['channel'].id, "role": x['role'].id, "firstRun": x['firstRun'], "active": x['active'], "entryCache": x['entryCache'], "speed": x['speed'] })
     return listjson
 
 async def deserializeList(obj):
     config.subscribedFeeds = []
     for x in obj:
         guild = bot.get_guild(x['guild'])
-        await add_list(x['feed'], guild, bot.get_channel(x['channel']), guild.get_role(x['role']), x['active'], x['firstRun'], x['entryCache'])
+        await add_list(x['feed'], guild, bot.get_channel(x['channel']), guild.get_role(x['role']), x['active'], x['firstRun'], x['entryCache'], x['speed'] if 'speed' in x else 'fast')
 
 
     
