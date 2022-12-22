@@ -136,7 +136,7 @@ async def strip_tags(html):
     return soup.get_text()
 
 #set loop start
-@tasks.loop(seconds = 360)
+@tasks.loop(seconds = 180)
 async def subscriptionLoop():   
     for list in config.subscribedFeeds:
         if config.loopcount is 0 or list['speed'] is 'fast':
@@ -145,7 +145,7 @@ async def subscriptionLoop():
                 for m in messages2:
                     discordMessage = "{0}\n{1}".format(list['role'].mention, m)
                     await list['channel'].send(discordMessage)
-    config.loopcount = (config.loopcount + 1) % 10
+    config.loopcount = (config.loopcount + 1) % 20
     await storeSubscription()
 
 
