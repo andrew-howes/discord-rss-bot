@@ -139,7 +139,7 @@ async def strip_tags(html):
 @tasks.loop(seconds = 180)
 async def subscriptionLoop():   
     for list in config.subscribedFeeds:
-        if config.loopcount is 0 or list['speed'] is 'fast':
+        if config.loopcount == 0 or list['speed'] == 'fast':
             messages2 = await getFeedItems(list, 0)
             if messages2 is not None:
                 for m in messages2:
